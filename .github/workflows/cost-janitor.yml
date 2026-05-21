@@ -1,0 +1,36 @@
+name: Cost Janitor CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  run-janitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install boto3
+
+      - name: Start LocalStack
+        run: docker run -d -p 4566:4566 localstack/localstack
+
+      - name: Wait for LocalStack
+        run: sleep 10
+
+      - name: Run Janitor Script
+        run: python janitor/janitor.py
+
+      - name: Run delete mode
+        run: python janitor/janitor.py --delete
+
+
