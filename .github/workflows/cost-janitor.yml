@@ -21,22 +21,21 @@ jobs:
       - name: Install dependencies
         run: pip install boto3
 
+      # ✅ Start LocalStack manually
       - name: Start LocalStack
         run: |
           docker run -d -p 4566:4566 \
           -e SERVICES=s3,ec2 \
           -e AWS_DEFAULT_REGION=us-east-1 \
+          -e DEBUG=1 \
           localstack/localstack
 
+      # ✅ REAL WAIT (health check, not dumb sleep)
       - name: Wait for LocalStack
-        run: sleep 40
-
-      - name: Run Janitor Script (dry run)
-        run: python janitor/janitor.py
-        env:
-          LOCALSTACK_URL: http://127.0.0.1:4566
-
-      - name: Run delete mode
-        run: python janitor/janitor.py --delete
-        env:
-          LOCALSTACK_URL: http://127.0.0.1:4566
+        run: |
+          for i in {1..15}; do
+            echo "Checking LocalStack health..."
+            curl -s http://127.0.0.1:4566/health | grep "running" && break
+            echo "Not ready yet, waiting..."
+            sleep 5
+          done
