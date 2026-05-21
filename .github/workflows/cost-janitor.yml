@@ -9,16 +9,6 @@ jobs:
   run-janitor:
     runs-on: ubuntu-latest
 
-    services:
-      localstack:
-        image: localstack/localstack
-        ports:
-          - 4566:4566
-        env:
-          SERVICES: s3,ec2
-          DEBUG: 1
-          AWS_DEFAULT_REGION: us-east-1
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -31,6 +21,15 @@ jobs:
       - name: Install dependencies
         run: pip install boto3
 
+      # ✅ Start LocalStack manually
+      - name: Start LocalStack
+        run: |
+          docker run -d -p 4566:4566 \
+          -e SERVICES=s3,ec2 \
+          -e AWS_DEFAULT_REGION=us-east-1 \
+          localstack/localstack
+
+      # ✅ Wait properly (important)
       - name: Wait for LocalStack
         run: sleep 40
 
