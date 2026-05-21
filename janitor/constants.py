@@ -1,0 +1,1 @@
+EBS_COST_PER_GB = 0.08
