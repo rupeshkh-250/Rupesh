@@ -1,13 +1,16 @@
-name: Cost Janitor CI
+name: Cost Janitor
 
-on:
-  push:
-    branches:
-      - main
+on: [push]
 
 jobs:
   run-janitor:
     runs-on: ubuntu-latest
+
+    services:
+      localstack:
+        image: localstack/localstack
+        ports:
+          - 4566:4566
 
     steps:
       - name: Checkout code
@@ -21,16 +24,11 @@ jobs:
       - name: Install dependencies
         run: pip install boto3
 
-      - name: Start LocalStack
-        run: docker run -d -p 4566:4566 localstack/localstack
-
       - name: Wait for LocalStack
-        run: sleep 30
+        run: sleep 20
 
       - name: Run Janitor Script
         run: python janitor/janitor.py
 
       - name: Run delete mode
         run: python janitor/janitor.py --delete
-
-
