@@ -1,98 +1,76 @@
 import boto3
 import json
-import sys
-
-# Config
-EBS_PRICE_PER_GB = 0.08  # per GB/month
-EC2_T3_MICRO = 8.0       # approx monthly cost
-
-# Dry run logic
-DRY_RUN = True
-if "--delete" in sys.argv:
-    DRY_RUN = False
-
-print(f"Dry run mode: {DRY_RUN}")
-
+import argparse
+import os
 
 def get_ec2_client():
     return boto3.client(
         "ec2",
         region_name="us-east-1",
-        endpoint_url="http://localhost:4566",
         aws_access_key_id="test",
-        aws_secret_access_key="test"
+        aws_secret_access_key="test",
+        endpoint_url=os.getenv("LOCALSTACK_URL", "http://localhost:4566")
     )
-
 
 def get_s3_client():
     return boto3.client(
         "s3",
-        endpoint_url="http://localhost:4566",
+        region_name="us-east-1",
         aws_access_key_id="test",
-        aws_secret_access_key="test"
+        aws_secret_access_key="test",
+        endpoint_url=os.getenv("LOCALSTACK_URL", "http://localhost:4566")
     )
 
-
 def get_unused_volumes(ec2):
-    response = ec2.describe_volumes()
-    unused = []
-
-    for vol in response["Volumes"]:
-        if vol["State"] == "available":
-            unused.append({
-                "VolumeId": vol["VolumeId"],
-                "Size": vol["Size"],
-                "State": vol["State"]
-            })
-
+    volumes = ec2.describe_volumes()["Volumes"]
+    unused = [v for v in volumes if v["State"] == "available"]
     return unused
 
-
-def delete_volumes(ec2, volumes):
-    for vol in volumes:
-        vid = vol["VolumeId"]
-        print(f"Deleting volume: {vid}")
-        ec2.delete_volume(VolumeId=vid)
-
+def get_buckets(s3):
+    buckets = s3.list_buckets()["Buckets"]
+    return [b["Name"] for b in buckets]
 
 def calculate_cost(volumes):
     total = 0
-    for vol in volumes:
-        total += vol["Size"] * EBS_PRICE_PER_GB
-    return total
+    for v in volumes:
+        total += v["Size"] * 0.08  # $0.08 per GB
+    return round(total, 2)
 
-
-def get_buckets(s3):
-    response = s3.list_buckets()
-    return [b["Name"] for b in response["Buckets"]]
-
+def delete_volumes(ec2, volumes):
+    for v in volumes:
+        ec2.delete_volume(VolumeId=v["VolumeId"])
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--delete", action="store_true")
+    args = parser.parse_args()
+
+    print("Janitor started...")
+
     ec2 = get_ec2_client()
     s3 = get_s3_client()
 
-    output = {}
-
-    # Volumes
     unused_volumes = get_unused_volumes(ec2)
-    output["unused_volumes"] = unused_volumes
-
-    # Cost
-    total_cost = calculate_cost(unused_volumes)
-    output["monthly_waste_cost"] = total_cost
-
-    # Buckets
     buckets = get_buckets(s3)
-    output["buckets"] = buckets
 
-    # Delete if needed
-    if not DRY_RUN:
+    output = {
+        "unused_volumes": [
+            {
+                "VolumeId": v["VolumeId"],
+                "Size": v["Size"],
+                "State": v["State"]
+            }
+            for v in unused_volumes
+        ],
+        "monthly_waste_cost": calculate_cost(unused_volumes),
+        "buckets": buckets
+    }
+
+    if args.delete:
         delete_volumes(ec2, unused_volumes)
+        print("Deleted unused volumes")
 
-    # Final output
-    print(json.dumps(output, indent=2, default=str))
+    print(json.dumps(output, indent=2))
 
-
-# Entry point (VERY IMPORTANT)
 if __name__ == "__main__":
     main()
