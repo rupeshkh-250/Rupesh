@@ -1,6 +1,9 @@
 name: Cost Janitor
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   run-janitor:
@@ -11,6 +14,10 @@ jobs:
         image: localstack/localstack
         ports:
           - 4566:4566
+        env:
+          SERVICES: s3,ec2
+          DEBUG: 1
+          AWS_DEFAULT_REGION: us-east-1
 
     steps:
       - name: Checkout code
@@ -19,15 +26,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install dependencies
         run: pip install boto3
 
       - name: Wait for LocalStack
-        run: sleep 20
+        run: sleep 40
 
-      - name: Run Janitor Script
+      - name: Run Janitor Script (dry run)
         run: python janitor/janitor.py
 
       - name: Run delete mode
