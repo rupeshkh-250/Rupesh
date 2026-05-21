@@ -25,7 +25,7 @@ jobs:
         run: docker run -d -p 4566:4566 localstack/localstack
 
       - name: Wait for LocalStack
-        run: sleep 10
+        run: sleep 30
 
       - name: Run Janitor Script
         run: python janitor/janitor.py
