@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: pip install boto3
 
-      # ✅ Start LocalStack manually
+      # Start LocalStack manually
       - name: Start LocalStack
         run: |
           docker run -d -p 4566:4566 \
@@ -30,7 +30,7 @@ jobs:
           -e DEBUG=1 \
           localstack/localstack
 
-      # ✅ REAL WAIT (health check, not dumb sleep)
+      # REAL WAIT (health check, not dumb sleep)
       - name: Wait for LocalStack
         run: |
           for i in {1..15}; do
