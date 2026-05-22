@@ -1,1 +1,13 @@
-
+{
+  "unused_volumes": [
+    {
+      "VolumeId": "vol-123456",
+      "Size": 8,
+      "State": "available"
+    }
+  ],
+  "buckets": [
+    "my-log-bucket"
+  ],
+  "monthly_waste_cost": 1.28
+}
