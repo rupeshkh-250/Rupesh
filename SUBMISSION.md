@@ -1,112 +1,51 @@
-# Submission – Cost Optimization Janitor
+# Submission — DevOps Engineer Assignment
 
-## Candidate Information
-Name: Moses A
+**Candidate name:** Moses A  
+**Email:** mosessmos08@gmail.com  
+**Date submitted:** 2026-05-23  
+**Hours spent (approximate):** 8–10 hours  
 
----
+## Deliverables checklist
 
-## Project Summary
+- [x] Part A: Terraform code under /terraform applies cleanly on LocalStack
+- [x] Part A: `terraform validate` and `terraform fmt -check` both pass
+- [x] Part B: Janitor script runs in --dry-run mode and produces report.json
+- [x] Part B: GitHub Actions workflow runs green on a fresh PR
+- [x] Part B: --delete mode respects Protected=true tag
+- [x] Part C: DESIGN.md is present and within 2 pages
+- [x] Walkthrough video link below is accessible (unlisted is fine)
 
-This project implements a cost optimization tool that identifies unused AWS resources and estimates potential monthly cost savings.
+## Walkthrough video
 
-The solution is built using Python (boto3) and tested using LocalStack to simulate AWS services. It also includes a CI/CD pipeline using GitHub Actions for automated execution.
+Link ( Google Drive):  
+https://drive.google.com/file/d/1AOSXvPZOLajDYEX0jJANRs2i979cZEot/view?usp=drivesdk
 
----
+Length: ~3–4 minutes  
 
-## Features Implemented
+## Sample report
 
-- Detection of unused EBS volumes
-- Listing of S3 buckets
-- Monthly cost estimation based on volume size
-- Dry run mode for safe execution
-- Delete mode to clean unused resources
-- CI/CD pipeline for automated execution
+Path to a sample report.json produced by your script:  
+ samples/report.example.json  
 
----
+## Known limitations
 
-## How to Run Locally
+- Cost estimation uses static pricing (not real-time AWS pricing)
+- Only limited AWS resources are scanned (EBS, EC2, S3)
+- LocalStack does not fully simulate all AWS edge cases
+- No multi-region or multi-account support
+- No alerting/notification system implemented
 
-### 1. Start LocalStack
+## AI usage disclosure
 
-```bash
-docker run -d -p 4566:4566 -e SERVICES=s3,ec2 localstack/localstack
-```
+AI tools such as ChatGPT were used for:
+- Initial guidance on Terraform + LocalStack setup
+- Debugging GitHub Actions issues
+- Structuring the janitor script
 
-### 2. Install Dependencies
+One issue encountered:
+- AI suggested incorrect endpoint configuration for LocalStack, which caused connection errors. This was fixed by manually verifying endpoint URLs.
 
-```bash
-pip install boto3
-```
-
-### 3. Run Script (Dry Run)
-
-```bash
-python janitor/janitor.py
-```
-
-### 4. Run Script (Delete Mode)
-
-```bash
-python janitor/janitor.py --delete
-```
-
----
-
-## CI/CD Pipeline
-
-The GitHub Actions workflow performs the following steps:
-
-1. Sets up the Python environment
-2. Installs dependencies
-3. Starts LocalStack using Docker
-4. Waits until LocalStack is ready
-5. Executes the janitor script (dry run)
-6. Executes delete mode
-
-Workflow file:
-```
-.github/workflows/cost-janitor.yml
-```
-
----
-
-## Sample Output
-
-```json
-{
-  "unused_volumes": [
-    {
-      "VolumeId": "vol-123",
-      "Size": 8,
-      "State": "available"
-    }
-  ],
-  "monthly_waste_cost": 0.64,
-  "buckets": ["my-log-bucket"]
-}
-```
-
----
-
-## Assumptions
-
-- EBS pricing is assumed as $0.08 per GB per month
-- LocalStack is used instead of real AWS to avoid cost
-- Only EBS volumes are considered for cost calculation
-
----
-
-## Limitations
-
-- Uses static pricing instead of real AWS pricing API
-- Limited to basic AWS resources (EC2 and S3)
-- Does not include advanced tagging or filtering logic
-
----
-
-## Notes
-
-- The project is designed for demonstration and learning purposes
-- The same logic can be extended to real AWS with proper credentials and IAM setup
-
----
+Manual work:
+- Core janitor logic (resource filtering, cost calculation)
+- Debugging CI/CD workflow errors
+- Understanding and fixing LocalStack connectivity issues
