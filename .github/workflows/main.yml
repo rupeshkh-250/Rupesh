@@ -19,7 +19,10 @@ jobs:
       # Step 3: Initialize Terraform
       - name: Terraform Init
         run: terraform init
-
+      # Test the steps
+      - name: Terraform plan
+        run: terraform plan     
+ 
       # Step 4: Apply Terraform (provision EC2 + SG)
       - name: Terraform Apply
         run: terraform apply -auto-approve
