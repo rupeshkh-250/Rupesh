@@ -1,0 +1,51 @@
+# This workflow will upload a Python Package to PyPI when a release is created
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Terraform + Ansible Deployment
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      # Step 3: Initialize Terraform
+      - name: Terraform Init
+        run: terraform init
+      # Test the steps
+      - name: Terraform plan
+        run: terraform plan     
+ 
+      # Step 4: Apply Terraform (provision EC2 + SG)
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      # Step 5: Install Ansible
+      - name: Install Ansible
+        run: sudo apt-get install -y ansible
+
+      # Step 6: Generate Inventory from Terraform output
+      - name: Generate Inventory
+        run: |
+          echo "[webservers]" > inventory.ini
+          terraform output -raw public_ip >> inventory.ini
+          echo " ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/my-key.pem" >> inventory.ini
+
+      # Step 7: Run Ansible Playbook
+      - name: Run Ansible Playbook
+        run: ansible-playbook -i inventory.ini nginx.yml
