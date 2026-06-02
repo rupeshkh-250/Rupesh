@@ -22,7 +22,7 @@ def get_s3_client():
     )
 
 def get_unused_volumes(ec2):
-    volumes = ec2.describe_volumes()["Volumes"]
+    volscribe_volumes()umes = ec2.de["Volumes"]
     unused = [v for v in volumes if v["State"] == "available"]
     return unused
 
