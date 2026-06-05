@@ -1,48 +1,67 @@
-import boto3
-import json
+"""Simple janitor: detect unused EBS volumes and S3 buckets."""
+
 import argparse
+import json
 import os
+from typing import List
+
+import boto3
+
+try:  # support package and direct script execution
+    from .constants import EBS_COST_PER_GB
+except Exception:
+    try:
+        from constants import EBS_COST_PER_GB
+    except Exception:
+        EBS_COST_PER_GB = 0.08
+
 
 def get_ec2_client():
-    return boto3.client(
-        "ec2",
-        region_name="us-east-1",
-        aws_access_key_id="test",
-        aws_secret_access_key="test",
-        endpoint_url=os.getenv("LOCALSTACK_URL", "http://localhost:4566")
-    )
+    endpoint = os.getenv("LOCALSTACK_URL")
+    region = os.getenv("AWS_REGION", "us-east-1")
+    return boto3.client("ec2", region_name=region, endpoint_url=endpoint if endpoint else None)
+
 
 def get_s3_client():
-    return boto3.client(
-        "s3",
-        region_name="us-east-1",
-        aws_access_key_id="test",
-        aws_secret_access_key="test",
-        endpoint_url=os.getenv("LOCALSTACK_URL", "http://localhost:4566")
-    )
+    endpoint = os.getenv("LOCALSTACK_URL")
+    region = os.getenv("AWS_REGION", "us-east-1")
+    return boto3.client("s3", region_name=region, endpoint_url=endpoint if endpoint else None)
 
-def get_unused_volumes(ec2):
-    volscribe_volumes()umes = ec2.de["Volumes"]
-    unused = [v for v in volumes if v["State"] == "available"]
-    return unused
 
-def get_buckets(s3):
-    buckets = s3.list_buckets()["Buckets"]
-    return [b["Name"] for b in buckets]
+def get_unused_volumes(ec2) -> List[dict]:
+    resp = ec2.describe_volumes()
+    volumes = resp.get("Volumes", [])
+    return [v for v in volumes if v.get("State") == "available"]
 
-def calculate_cost(volumes):
-    total = 0
-    for v in volumes:
-        total += v["Size"] * 0.08  # $0.08 per GB
+
+def get_buckets(s3) -> List[str]:
+    try:
+        resp = s3.list_buckets()
+        buckets = resp.get("Buckets", [])
+        return [b.get("Name") for b in buckets]
+    except Exception:
+        return []
+
+
+def calculate_cost(volumes: List[dict]) -> float:
+    total = sum(v.get("Size", 0) * EBS_COST_PER_GB for v in volumes)
     return round(total, 2)
 
-def delete_volumes(ec2, volumes):
-    for v in volumes:
-        ec2.delete_volume(VolumeId=v["VolumeId"])
 
-def main():
+def delete_volumes(ec2, volumes: List[dict]) -> None:
+    for v in volumes:
+        vid = v.get("VolumeId")
+        if not vid:
+            continue
+        try:
+            ec2.delete_volume(VolumeId=vid)
+        except Exception as e:
+            print(f"Failed to delete {vid}: {e}")
+
+
+def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--delete", action="store_true")
+    parser.add_argument("--delete", action="store_true", help="Delete unused volumes")
     args = parser.parse_args()
 
     print("Janitor started...")
@@ -55,15 +74,11 @@ def main():
 
     output = {
         "unused_volumes": [
-            {
-                "VolumeId": v["VolumeId"],
-                "Size": v["Size"],
-                "State": v["State"]
-            }
+            {"VolumeId": v.get("VolumeId"), "Size": v.get("Size"), "State": v.get("State")}
             for v in unused_volumes
         ],
         "monthly_waste_cost": calculate_cost(unused_volumes),
-        "buckets": buckets
+        "buckets": buckets,
     }
 
     if args.delete:
@@ -71,6 +86,7 @@ def main():
         print("Deleted unused volumes")
 
     print(json.dumps(output, indent=2))
+
 
 if __name__ == "__main__":
     main()
