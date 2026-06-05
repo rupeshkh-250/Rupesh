@@ -1,5 +1,7 @@
 # Cost Optimization Janitor (AWS + LocalStack)
 
+[![CI](https://github.com/rupeshkh-250/Rupesh/actions/workflows/ci.yml/badge.svg)](https://github.com/rupeshkh-250/Rupesh/actions)
+
 ## Project Overview
 This project is a cost optimization tool built using Python and AWS services (simulated using LocalStack). It identifies unused resources and estimates potential cost savings.
 
