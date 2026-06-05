@@ -1,13 +1,17 @@
-"""Simple janitor: detect unused EBS volumes and S3 buckets."""
+"""Janitor (local mode)
+
+This simplified version removes the runtime dependency on AWS. By default it
+loads a sample report from `samples/report.example.json` and calculates
+monthly waste cost. For safety and to avoid requiring `boto3`, AWS calls are
+not used.
+"""
 
 import argparse
 import json
 import os
 from typing import List
 
-import boto3
-
-try:  # support package and direct script execution
+try:
     from .constants import EBS_COST_PER_GB
 except Exception:
     try:
@@ -16,31 +20,9 @@ except Exception:
         EBS_COST_PER_GB = 0.08
 
 
-def get_ec2_client():
-    endpoint = os.getenv("LOCALSTACK_URL")
-    region = os.getenv("AWS_REGION", "us-east-1")
-    return boto3.client("ec2", region_name=region, endpoint_url=endpoint if endpoint else None)
-
-
-def get_s3_client():
-    endpoint = os.getenv("LOCALSTACK_URL")
-    region = os.getenv("AWS_REGION", "us-east-1")
-    return boto3.client("s3", region_name=region, endpoint_url=endpoint if endpoint else None)
-
-
-def get_unused_volumes(ec2) -> List[dict]:
-    resp = ec2.describe_volumes()
-    volumes = resp.get("Volumes", [])
-    return [v for v in volumes if v.get("State") == "available"]
-
-
-def get_buckets(s3) -> List[str]:
-    try:
-        resp = s3.list_buckets()
-        buckets = resp.get("Buckets", [])
-        return [b.get("Name") for b in buckets]
-    except Exception:
-        return []
+def load_sample_report(path: str) -> dict:
+    with open(path, "r", encoding="utf-8") as fh:
+        return json.load(fh)
 
 
 def calculate_cost(volumes: List[dict]) -> float:
@@ -48,42 +30,42 @@ def calculate_cost(volumes: List[dict]) -> float:
     return round(total, 2)
 
 
-def delete_volumes(ec2, volumes: List[dict]) -> None:
-    for v in volumes:
-        vid = v.get("VolumeId")
-        if not vid:
-            continue
-        try:
-            ec2.delete_volume(VolumeId=vid)
-        except Exception as e:
-            print(f"Failed to delete {vid}: {e}")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--delete", action="store_true", help="Delete unused volumes")
+    parser.add_argument("--local", action="store_true", help="Use local sample report")
+    parser.add_argument("--report", type=str, help="Path to JSON report to read")
+    parser.add_argument("--delete", action="store_true", help="(noop) Delete unused volumes — not supported in local mode")
     args = parser.parse_args()
 
-    print("Janitor started...")
+    print("Janitor started (local mode)...")
 
-    ec2 = get_ec2_client()
-    s3 = get_s3_client()
+    # Prefer explicit report path, then bundled sample
+    if args.report:
+        report_path = args.report
+    else:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        report_path = os.path.join(repo_root, "samples", "report.example.json")
 
-    unused_volumes = get_unused_volumes(ec2)
-    buckets = get_buckets(s3)
+    if not os.path.exists(report_path):
+        print(f"Report file not found: {report_path}")
+        return
+
+    report = load_sample_report(report_path)
+
+    volumes = report.get("unused_volumes", [])
+    buckets = report.get("buckets", [])
 
     output = {
         "unused_volumes": [
             {"VolumeId": v.get("VolumeId"), "Size": v.get("Size"), "State": v.get("State")}
-            for v in unused_volumes
+            for v in volumes
         ],
-        "monthly_waste_cost": calculate_cost(unused_volumes),
+        "monthly_waste_cost": calculate_cost(volumes),
         "buckets": buckets,
     }
 
     if args.delete:
-        delete_volumes(ec2, unused_volumes)
-        print("Deleted unused volumes")
+        print("Delete requested, but destructive operations are disabled in local mode.")
 
     print(json.dumps(output, indent=2))
 

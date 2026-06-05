@@ -1,1 +1,1 @@
-boto3
+# No runtime AWS dependency required for local mode.
